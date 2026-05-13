@@ -2,6 +2,18 @@
 
 基于 **LangChain + RAG + Neo4j 知识图谱** 的全栈医疗智能助手，支持多模型切换、OCR 报告识别、知识图谱可视化、药物相互作用分级检查、PDF 报告生成，Docker 一键部署。
 
+> 本项目由 Claude Code + DeepSeek AI 辅助开发 —— 随心wly
+>
+> 参考项目：[QASystemOnMedicalKG](https://github.com/liuhuanyong/QASystemOnMedicalKG) · [RAGQnASystem](https://github.com/honeyandme/RAGQnASystem)
+
+### 项目截图
+
+<img width="1230" height="912" alt="image" src="https://github.com/user-attachments/assets/750c94ea-413c-4c22-94fe-cfeffd71220e" />
+<img width="1267" height="687" alt="image" src="https://github.com/user-attachments/assets/c3a23ca7-2904-473b-9556-a2aed0c28885" />
+<img width="1270" height="979" alt="image" src="https://github.com/user-attachments/assets/34a52301-1eab-4040-8d2d-dc2e470df639" />
+<img width="1264" height="746" alt="image" src="https://github.com/user-attachments/assets/46498020-1968-4317-92c2-0e103aca472b" />
+<img width="1260" height="759" alt="image" src="https://github.com/user-attachments/assets/da766003-6c6e-4365-ab1d-c7b0c0db8992" />
+
 ---
 
 ## ✨ 功能特性
