@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>医疗智能助手</title>
+<style>
+:root {
+  --primary: #2563eb; --primary-light: #dbeafe; --danger: #dc2626;
+  --danger-light: #fef2f2; --success: #16a34a; --bg: #f8fafc;
+  --card: #ffffff; --border: #e2e8f0; --text: #1e293b;
+  --text-muted: #64748b; --sidebar-w: 280px; --radius: 10px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans SC",sans-serif; background:var(--bg); color:var(--text); height:100vh; overflow:hidden; }
+
+/* Login overlay */
+#loginOverlay {
+  position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000;
+  display:flex; align-items:center; justify-content:center;
+}
+#loginOverlay.hidden { display:none; }
+.login-box { background:var(--card); border-radius:16px; padding:40px; width:380px; max-width:90vw; box-shadow:0 20px 60px rgba(0,0,0,0.15); text-align:center; }
+.login-box h2 { font-size:24px; margin-bottom:8px; color:var(--primary); }
+.login-box p { color:var(--text-muted); font-size:14px; margin-bottom:24px; }
+.login-box input { width:100%; padding:12px 16px; border:2px solid var(--border); border-radius:10px; font-size:16px; outline:none; transition:border-color .2s; }
+.login-box input:focus { border-color:var(--primary); }
+.login-box button { width:100%; margin-top:16px; padding:12px; background:var(--primary); color:#fff; border:none; border-radius:10px; font-size:16px; font-weight:600; cursor:pointer; }
+.login-box button:hover { background:#1d4ed8; }
+
+/* Layout */
+#app { display:flex; height:100vh; }
+#app.hidden { display:none; }
+
+/* Sidebar */
+.sidebar {
+  width:var(--sidebar-w); min-width:var(--sidebar-w); background:#1e293b;
+  color:#e2e8f0; display:flex; flex-direction:column; overflow:hidden;
+}
+.sidebar-header { padding:20px; border-bottom:1px solid #334155; }
+.sidebar-header .user-info { display:flex; align-items:center; gap:10px; }
+.sidebar-header .avatar { width:36px; height:36px; border-radius:50%; background:var(--primary); display:flex; align-items:center; justify-content:center; font-weight:700; color:#fff; font-size:16px; }
+.sidebar-header .username { font-weight:600; font-size:15px; }
+.sidebar-header .logout-btn { font-size:12px; color:#94a3b8; cursor:pointer; margin-top:2px; }
+.sidebar-header .logout-btn:hover { color:#fff; }
+.new-chat-btn {
+  margin:12px 16px; padding:10px; background:var(--primary); color:#fff;
+  border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; gap:6px;
+}
+.new-chat-btn:hover { background:#1d4ed8; }
+.conv-list { flex:1; overflow-y:auto; padding:0 8px; }
+.conv-item {
+  padding:10px 12px; border-radius:8px; cursor:pointer; margin:2px 0;
+  display:flex; align-items:center; justify-content:space-between; font-size:13px;
+}
+.conv-item:hover { background:#334155; }
+.conv-item.active { background:#334155; }
+.conv-item .title { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.conv-item .meta { font-size:11px; color:#94a3b8; margin-left:8px; white-space:nowrap; }
+.conv-item .del-btn { opacity:0; margin-left:6px; color:#94a3b8; cursor:pointer; font-size:14px; }
+.conv-item:hover .del-btn { opacity:1; }
+.conv-item .del-btn:hover { color:var(--danger); }
+
+/* Main area */
+.main { flex:1; display:flex; flex-direction:column; overflow:hidden; background:var(--bg); }
+.main-header { padding:14px 24px; background:var(--card); border-bottom:1px solid var(--border); font-weight:600; font-size:15px; }
+.chat-area { flex:1; overflow-y:auto; padding:20px 24px; display:flex; flex-direction:column; gap:14px; }
+.chat-area:empty::after { content:'输入症状开始咨询'; color:var(--text-muted); margin:auto; font-size:15px; }
+.empty-state { margin:auto; text-align:center; color:var(--text-muted); }
+.empty-state .icon { font-size:48px; margin-bottom:12px; }
+.empty-state h3 { font-size:18px; margin-bottom:6px; }
+.empty-state p { font-size:14px; }
+
+/* Messages */
+.msg { max-width:80%; animation: fadeIn .3s; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(8px);} to{opacity:1;transform:translateY(0);} }
+.msg.user { align-self:flex-end; }
+.msg.user .bubble { background:var(--primary); color:#fff; border-radius:16px 16px 4px 16px; padding:12px 16px; }
+.msg.agent { align-self:flex-start; }
+.msg.agent .bubble { background:#f1f5f9; border-radius:16px 16px 16px 4px; padding:12px 16px; }
+.msg .bubble { font-size:14px; line-height:1.7; white-space:pre-wrap; word-break:break-word; }
+.msg .time { font-size:11px; color:var(--text-muted); margin-top:4px; padding:0 4px; }
+.msg.user .time { text-align:right; }
+
+/* Thinking */
+.thinking-box {
+  align-self:flex-start; max-width:80%; background:#fffbeb; border:1px solid #fde68a;
+  border-radius:12px; padding:10px 14px; font-size:13px;
+}
+.thinking-box summary { cursor:pointer; font-weight:600; color:#92400e; }
+.thinking-box .steps { margin-top:6px; }
+.thinking-box .step { padding:3px 0; color:#78716c; display:flex; align-items:center; gap:6px; }
+.thinking-box .step.done { color:#65a30d; }
+.thinking-box .step .dot { width:6px; height:6px; border-radius:50%; background:#fbbf24; }
+.thinking-box .step.done .dot { background:#65a30d; }
+
+/* Image preview */
+.img-preview { max-width:200px; max-height:150px; border-radius:8px; margin-top:6px; border:1px solid var(--border); }
+.img-preview-wrap { position:relative; display:inline-block; }
+.img-preview-wrap .remove-img { position:absolute; top:-6px; right:-6px; width:20px; height:20px; border-radius:50%; background:var(--danger); color:#fff; border:none; cursor:pointer; font-size:12px; line-height:20px; text-align:center; }
+.ocr-btn { display:block; margin-top:6px; padding:5px 12px; background:#f59e0b; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:12px; }
+.ocr-btn:hover { background:#d97706; }
+
+/* Download link */
+.dl-link { display:inline-flex; align-items:center; gap:6px; margin-top:8px; padding:6px 14px; background:var(--success); color:#fff; border-radius:6px; text-decoration:none; font-size:13px; }
+.dl-link:hover { background:#15803d; }
+
+/* Input */
+.input-area { padding:14px 24px; background:var(--card); border-top:1px solid var(--border); }
+.input-row { display:flex; gap:10px; align-items:flex-end; }
+.input-row textarea { flex:1; padding:10px 14px; border:1px solid var(--border); border-radius:10px; font-size:14px; resize:none; outline:none; font-family:inherit; min-height:44px; max-height:120px; transition:border-color .2s; }
+.input-row textarea:focus { border-color:var(--primary); box-shadow:0 0 0 3px var(--primary-light); }
+.input-row .btn-icon { width:40px; height:40px; border:1px solid var(--border); border-radius:10px; background:var(--card); cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center; transition:border-color .2s; }
+.input-row .btn-icon:hover { border-color:var(--primary); }
+.input-row .btn-send { padding:10px 22px; background:var(--primary); color:#fff; border:none; border-radius:10px; font-size:14px; font-weight:600; cursor:pointer; white-space:nowrap; display:flex; align-items:center; gap:6px; }
+.input-row .btn-send:hover { background:#1d4ed8; }
+.input-row .btn-send:disabled { background:#94a3b8; cursor:not-allowed; }
+.spinner { display:none; width:18px; height:18px; border:2px solid #fff; border-top-color:transparent; border-radius:50%; animation:spin .6s linear infinite; }
+.btn-send.loading .btn-text { display:none; }
+.btn-send.loading .spinner { display:inline-block; }
+@keyframes spin { to{transform:rotate(360deg);} }
+
+/* Responsive */
+@media (max-width:700px) {
+  .sidebar { display:none; }
+  .msg { max-width:92%; }
+  #mobileMenuBtn { display:block !important; }
+}
+#mobileMenuBtn { display:none; position:fixed; top:12px; left:12px; z-index:100; width:36px; height:36px; border-radius:50%; background:var(--card); border:1px solid var(--border); cursor:pointer; font-size:18px; }
+</style>
+</head>
+<body>
+
+<!-- Login -->
+<div id="loginOverlay">
+  <div class="login-box">
+    <h2>医疗智能助手</h2>
+    <p>请输入用户名开始使用</p>
+    <input id="loginName" type="text" placeholder="用户名" onkeydown="if(event.key==='Enter')doLogin()">
+    <button onclick="doLogin()">进入系统</button>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app" class="hidden">
+  <button id="mobileMenuBtn" onclick="toggleSidebar()">&#9776;</button>
+
+  <!-- Sidebar -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="user-info">
+        <div class="avatar" id="userAvatar"></div>
+        <div>
+          <div class="username" id="sidebarUser"></div>
+          <div class="logout-btn" onclick="doLogout()">退出登录</div>
+        </div>
+      </div>
+    </div>
+    <button class="new-chat-btn" onclick="newConversation()">+ 新建对话</button>
+    <div class="conv-list" id="convList"></div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="main-header" id="mainTitle">新对话</div>
+    <div class="chat-area" id="chatArea">
+      <div class="empty-state">
+        <div class="icon">&#129657;</div>
+        <h3>医疗智能助手</h3>
+        <p>描述您的症状或上传检查报告图片，获取 AI 诊断建议</p>
+      </div>
+    </div>
+    <div class="input-area">
+      <div id="imgPreviewContainer" style="margin-bottom:8px;"></div>
+      <div class="input-row">
+        <label class="btn-icon" title="上传图片" style="position:relative;">
+          &#128247;
+          <input type="file" accept="image/*" id="imageInput" onchange="handleImage(event)" style="position:absolute;inset:0;opacity:0;cursor:pointer;">
+        </label>
+        <textarea id="questionInput" rows="1" placeholder="请描述您的症状..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg();}" oninput="autoResize(this)"></textarea>
+        <button class="btn-send" id="sendBtn" onclick="sendMsg()">
+          <span class="btn-text">发送</span><span class="spinner"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== State ==========
+let currentUser = null;
+let currentConvId = null;
+let pendingImage = null; // {preview, path}
+
+// ========== Auth ==========
+function doLogin() {
+  const name = document.getElementById('loginName').value.trim();
+  if (!name) return;
+  fetch('/api/login', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({username:name})
+  }).then(r=>r.json()).then(data => {
+    currentUser = data.user_id;
+    document.getElementById('loginOverlay').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    document.getElementById('sidebarUser').textContent = currentUser;
+    document.getElementById('userAvatar').textContent = currentUser[0].toUpperCase();
+    loadConversations();
+    newConversation();
+  });
+}
+function doLogout() {
+  currentUser = null; currentConvId = null; pendingImage = null;
+  document.getElementById('loginOverlay').classList.remove('hidden');
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('chatArea').innerHTML = '<div class="empty-state"><div class="icon">&#129657;</div><h3>医疗智能助手</h3><p>描述您的症状或上传检查报告图片，获取 AI 诊断建议</p></div>';
+  document.getElementById('convList').innerHTML = '';
+}
+
+// ========== Conversations ==========
+function loadConversations() {
+  fetch(`/api/conversations/${currentUser}`).then(r=>r.json()).then(d=>{
+    const list = document.getElementById('convList');
+    list.innerHTML = d.conversations.map(c => `
+      <div class="conv-item${c.id===currentConvId?' active':''}" onclick="switchConversation('${c.id}')">
+        <span class="title">${escHtml(c.title)}</span>
+        <span class="meta">${c.message_count||0}</span>
+        <span class="del-btn" onclick="event.stopPropagation();deleteConv('${c.id}')">&times;</span>
+      </div>
+    `).join('');
+  });
+}
+
+function newConversation() {
+  fetch(`/api/conversations/${currentUser}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'})
+  .then(r=>r.json()).then(c => {
+    currentConvId = c.id;
+    document.getElementById('mainTitle').textContent = '新对话';
+    document.getElementById('chatArea').innerHTML = '<div class="empty-state"><div class="icon">&#129657;</div><h3>新对话</h3><p>描述您的症状，开始新的咨询</p></div>';
+    loadConversations();
+  });
+}
+
+function switchConversation(convId) {
+  currentConvId = convId;
+  // Fetch full conversation with messages
+  fetch(`/api/conversations/${currentUser}/${convId}`).then(r=>{
+    if (!r.ok) throw new Error('not found');
+    return r.json();
+  }).then(conv => {
+    document.getElementById('mainTitle').textContent = conv.title || '对话';
+    const area = document.getElementById('chatArea');
+    area.innerHTML = '';
+    if (!conv.messages || conv.messages.length === 0) {
+      area.innerHTML = '<div class="empty-state"><div class="icon">&#129657;</div><h3>空对话</h3></div>';
+    } else {
+      conv.messages.forEach(m => {
+        const div = document.createElement('div');
+        div.className = 'msg ' + m.role;
+        const time = '';
+        let inner = `<div class="bubble">${escHtml(m.content||'').replace(/\n/g,'<br>')}</div>`;
+        if (m.report_file) {
+          inner += `<a class="dl-link" href="/download_report?file_path=${encodeURIComponent(m.report_file)}" target="_blank">&#128196; 下载 PDF 报告</a>`;
+        }
+        inner += `<div class="time">${time}</div>`;
+        div.innerHTML = inner;
+        area.appendChild(div);
+      });
+      area.scrollTop = area.scrollHeight;
+    }
+    loadConversations();
+  }).catch(() => {
+    document.getElementById('mainTitle').textContent = '对话';
+    document.getElementById('chatArea').innerHTML = '<div class="empty-state"><div class="icon">&#129657;</div><h3>对话加载失败</h3></div>';
+  });
+}
+
+function deleteConv(convId) {
+  if (!confirm('删除此对话？')) return;
+  fetch(`/api/conversations/${currentUser}/${convId}`, {method:'DELETE'}).then(()=>{
+    if (currentConvId === convId) newConversation();
+    else loadConversations();
+  });
+}
+
+// ========== Image ==========
+function showImagePreview(d) {
+  pendingImage = d;
+  const container = document.getElementById('imgPreviewContainer');
+  container.innerHTML = `<div class="img-preview-wrap">
+    <img src="${d.preview}" class="img-preview">
+    <button class="remove-img" onclick="removeImage()">&times;</button>
+    <button class="ocr-btn" onclick="runOCR('${d.path}')" title="OCR 识别报告中的指标">🔍 识别报告</button>
+  </div>`;
+}
+
+function handleImage(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const formData = new FormData();
+  formData.append('file', file);
+  fetch('/api/upload_image', {method:'POST', body:formData}).then(r=>r.json()).then(showImagePreview);
+}
+function removeImage() {
+  pendingImage = null;
+  document.getElementById('imgPreviewContainer').innerHTML = '';
+  document.getElementById('imageInput').value = '';
+}
+
+// OCR recognition
+function runOCR(imagePath) {
+  const area = document.getElementById('chatArea');
+  const div = document.createElement('div');
+  div.className = 'thinking-box';
+  div.innerHTML = '<details open><summary>🔍 识别中...</summary><div class="steps"><div class="step"><span class="dot"></span>正在处理...</div></div></details>';
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+
+  fetch('/api/ocr', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({image_path: imagePath})
+  }).then(r=>r.json()).then(data => {
+    if (data.ocr_available === false) {
+      div.innerHTML = '<details open><summary>📋 报告已接收（OCR 未安装）</summary>'
+        + '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px;margin-top:8px;">'
+        + '<strong>请在输入框中手动输入报告中的关键指标，例如：</strong><br>'
+        + '<code style="font-size:13px;">白细胞计数: 12.5 ↑  | 中性粒细胞: 8.2 ↑ | 红细胞: 4.3 | 血红蛋白: 130 | 血小板: 180</code><br>'
+        + '<span style="font-size:12px;color:#92400e;">输入后点击发送，AI 将据此分析</span></div>';
+      const input = document.getElementById('questionInput');
+      input.value = '请分析以下血常规指标：\n白细胞计数:  中性粒细胞:  红细胞:  血红蛋白:  血小板:  ';
+      input.focus();
+    } else {
+      div.innerHTML = '<details><summary>📋 报告识别结果</summary><div style="white-space:pre-wrap;line-height:1.8;background:#f0fdf4;border-radius:8px;padding:12px;">'
+        + escHtml(data.text).replace(/\n/g,'<br>') + '</div></details>';
+      const input = document.getElementById('questionInput');
+      input.value = '请分析以下医疗报告数据：\n' + data.text.substring(0, 500);
+      input.focus();
+    }
+    area.scrollTop = area.scrollHeight;
+  }).catch(err => {
+    div.innerHTML = '<details open><summary>❌ 识别失败</summary><div style="color:#dc2626;padding:8px;">'
+      + escHtml(err.message) + '<br>（图片已接收，可直接发送提问）</div></details>';
+  });
+}
+
+// Clipboard paste support (Ctrl+V for screenshots)
+document.addEventListener('paste', function(e) {
+  const items = e.clipboardData?.items;
+  if (!items) return;
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      e.preventDefault();
+      const blob = item.getAsFile();
+      const formData = new FormData();
+      formData.append('file', blob, 'clipboard.png');
+      fetch('/api/upload_image', {method:'POST', body:formData}).then(r=>r.json()).then(showImagePreview);
+      break;
+    }
+  }
+});
+
+// ========== Chat ==========
+function sendMsg() {
+  const input = document.getElementById('questionInput');
+  const btn = document.getElementById('sendBtn');
+  const query = input.value.trim();
+  if (!query && !pendingImage) return;
+
+  btn.disabled = true; btn.classList.add('loading');
+  input.value = ''; input.style.height = 'auto';
+
+  // Remove empty state
+  const empty = document.querySelector('.empty-state');
+  if (empty) empty.remove();
+
+  // Show user message
+  addMsg('user', query);
+
+  // Show pending image if any
+  let fullQuery = query || '请分析这张医疗报告图片';
+  if (pendingImage) {
+    addMsg('user', query || '[医疗报告图片]', pendingImage.preview);
+    fullQuery = (query || '请分析这张医疗报告图片中的检测指标，给出诊断建议')
+      + '\n[用户上传了医疗报告图片]';
+    pendingImage = null;
+    document.getElementById('imgPreviewContainer').innerHTML = '';
+    document.getElementById('imageInput').value = '';
+  }
+
+  // Show thinking box
+  const thinkDiv = addThinking();
+
+  const medsRaw = ''; // Could add medication input if needed
+  const currentMeds = medsRaw ? medsRaw.split(/[,，]/).map(s=>s.trim()).filter(Boolean) : [];
+
+  fetch('/ask', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      patient_id: currentUser,
+      patient_name: currentUser,
+      question: fullQuery,
+      current_medications: currentMeds,
+      conversation_id: currentConvId
+    })
+  }).then(r=>r.json()).then(data => {
+    // Update thinking
+    updateThinking(thinkDiv, data.thinking || []);
+    // Show answer
+    addMsg('agent', data.answer, data.report_file);
+    // Refresh conversation list
+    loadConversations();
+    document.getElementById('mainTitle').textContent = query.substring(0, 30);
+
+    // Load knowledge graph visualization
+    if (data.thinking && data.thinking.some(s => s.includes('匹配到'))) {
+      loadGraphImage(data.answer);
+    }
+  }).catch(err => {
+    updateThinking(thinkDiv, ['请求失败: '+err.message]);
+    addMsg('agent', '请求失败: ' + err.message);
+  }).finally(() => {
+    btn.disabled = false; btn.classList.remove('loading');
+    input.focus();
+  });
+}
+
+function addMsg(role, content, reportFile) {
+  const area = document.getElementById('chatArea');
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+  const time = new Date().toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit'});
+
+  let inner = `<div class="bubble">${escHtml(content).replace(/\n/g,'<br>')}</div>`;
+  if (reportFile) {
+    inner += `<a class="dl-link" href="/download_report?file_path=${encodeURIComponent(reportFile)}" target="_blank">&#128196; 下载 PDF 报告</a>`;
+  }
+  inner += `<div class="time">${time}</div>`;
+
+  // Handle image
+  if (arguments.length > 2 && typeof arguments[2] === 'string' && arguments[2].startsWith('data:image')) {
+    inner = `<div class="bubble">${escHtml(content).replace(/\n/g,'<br>')}<br><img src="${arguments[2]}" class="img-preview"></div>`;
+  }
+
+  div.innerHTML = inner;
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+  return div;
+}
+
+function addThinking() {
+  const area = document.getElementById('chatArea');
+  const div = document.createElement('div');
+  div.className = 'thinking-box';
+  div.innerHTML = '<details open><summary>思考中...</summary><div class="steps"></div></details>';
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+  return div;
+}
+
+function updateThinking(div, steps) {
+  const stepsDiv = div.querySelector('.steps');
+  const summary = div.querySelector('summary');
+  stepsDiv.innerHTML = steps.map((s,i) => {
+    const isLast = i === steps.length - 1;
+    return `<div class="step${isLast?' done':''}"><span class="dot"></span>${escHtml(s)}</div>`;
+  }).join('');
+  summary.textContent = '思考过程';
+  div.querySelector('details').open = false; // Collapse after done
+  const area = document.getElementById('chatArea');
+  area.scrollTop = area.scrollHeight;
+}
+
+// ========== Knowledge Graph Visualization ==========
+function loadGraphImage(answerText) {
+  // Extract disease names from the answer (look for lines with "（匹配度:" pattern)
+  const diseaseMatches = answerText.match(/- (\S+)（匹配度/g);
+  if (!diseaseMatches || diseaseMatches.length === 0) return;
+
+  const diseases = diseaseMatches.map(m => m.replace('- ', '').replace('（匹配度', '')).slice(0, 8).join(',');
+
+  fetch(`/api/graph/visualize?diseases=${encodeURIComponent(diseases)}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.image) {
+        const area = document.getElementById('chatArea');
+        const div = document.createElement('div');
+        div.className = 'msg agent';
+        div.innerHTML = `<div class="bubble" style="background:#fff;border:1px solid #e2e8f0;">
+          <strong>📊 知识图谱可视化</strong><br>
+          <img src="${data.image}" style="max-width:100%;border-radius:8px;margin-top:8px;"
+               alt="知识图谱" loading="lazy">
+          <div style="font-size:11px;color:#94a3b8;margin-top:4px;">共 ${data.node_count} 个节点</div>
+        </div>`;
+        area.appendChild(div);
+        area.scrollTop = area.scrollHeight;
+      }
+    });
+}
+
+// ========== Helpers ==========
+function escHtml(s) {
+  const d=document.createElement('div'); d.textContent=s; return d.innerHTML;
+}
+function autoResize(el) {
+  el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,120)+'px';
+}
+function toggleSidebar() {
+  document.getElementById('sidebar').style.display =
+    document.getElementById('sidebar').style.display==='none'?'flex':'none';
+}
+
+document.getElementById('loginName').focus();
+</script>
+</body>
+</html>

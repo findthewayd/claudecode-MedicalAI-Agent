@@ -1,0 +1,43 @@
+# Virtual environment
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Environment (API keys)
+.env
+
+# User data
+data/uploads/
+data/conversations/
+db/
+
+# Generated reports
+*.pdf
+
+# Large model & data (mounted as volumes)
+huatuo_data/chroma_huatuo_db/
+huatuo_data/BAAI/
+huatuo_data/default/
+huatuo_data/industry_instruction_*.jsonl
+
+# Pickled artifacts
+vectorstore.pkl
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+
+# Claude
+.claude/
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml

@@ -1,0 +1,46 @@
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment (contains API keys!)
+.env
+
+# User data
+data/uploads/
+data/conversations/
+db/
+
+# Generated reports
+*.pdf
+treatment_report_*.pdf
+
+# Large model & data files
+huatuo_data/chroma_huatuo_db/
+huatuo_data/BAAI/
+huatuo_data/default/
+huatuo_data/industry_instruction_semantic_cluster_dedup_*.jsonl
+
+# Large generated data (build via scripts/)
+data/pubmed_articles.txt
+data/knowledge_graph.pkl
+vectorstore.pkl
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Claude
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
